@@ -22,7 +22,9 @@ export default function SalonDashboard() {
 
   // Service form
   const [serviceForm, setServiceForm] = useState({ name: '', description: '', price: '', duration: '30', category: '' });
-  const [editingService, setEditingService] = useState<string | null>(null);
+  const [serviceError, setServiceError] = useState('');
+  const [serviceSuccess, setServiceSuccess] = useState('');
+  const [serviceLoading, setServiceLoading] = useState(false);
 
   // Settings form
   const [settingsForm, setSettingsForm] = useState({ name: '', description: '', address: '', city: '', phone: '', email: '' });
@@ -39,58 +41,81 @@ export default function SalonDashboard() {
   }, [session]);
 
   const loadSalonData = async () => {
-    const res = await fetch('/api/salons');
-    const data = await res.json();
-    const mySalon = data.salons?.find((s: any) => true); // We'll use a dedicated endpoint
-    // Actually fetch all and find by owner - need salon owner endpoint
-    const res2 = await fetch('/api/salons/my-salon');
-    if (res2.ok) {
-      const salonData = await res2.json();
-      if (salonData.salon) {
-        setSalon(salonData.salon);
-        setServices(salonData.services || []);
-        setPhotos(salonData.photos || []);
-        setSettingsForm({
-          name: salonData.salon.name || '',
-          description: salonData.salon.description || '',
-          address: salonData.salon.address || '',
-          city: salonData.salon.city || '',
-          phone: salonData.salon.phone || '',
-          email: salonData.salon.email || '',
-        });
+    try {
+      const res = await fetch('/api/salons/my-salon');
+      if (res.ok) {
+        const salonData = await res.json();
+        if (salonData.salon) {
+          setSalon(salonData.salon);
+          setServices(salonData.services || []);
+          setPhotos(salonData.photos || []);
+          setSettingsForm({
+            name: salonData.salon.name || '',
+            description: salonData.salon.description || '',
+            address: salonData.salon.address || '',
+            city: salonData.salon.city || '',
+            phone: salonData.salon.phone || '',
+            email: salonData.salon.email || '',
+          });
+        } else {
+          setNoSalon(true);
+        }
       } else {
         setNoSalon(true);
       }
-    } else {
+    } catch (err) {
+      console.error('Failed to load salon data:', err);
       setNoSalon(true);
     }
     setLoading(false);
   };
 
   const loadBookings = async () => {
-    const res = await fetch('/api/bookings');
-    if (res.ok) {
-      const data = await res.json();
-      setBookings(data.bookings || []);
+    try {
+      const res = await fetch('/api/bookings');
+      if (res.ok) {
+        const data = await res.json();
+        setBookings(data.bookings || []);
+      }
+    } catch (err) {
+      console.error('Failed to load bookings:', err);
     }
   };
 
   const addService = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = await fetch('/api/salons/my-salon/services', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...serviceForm,
-        price: parseFloat(serviceForm.price),
-        duration: parseInt(serviceForm.duration),
-      }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      setServices([...services, data.service]);
-      setServiceForm({ name: '', description: '', price: '', duration: '30', category: '' });
+    setServiceError('');
+    setServiceSuccess('');
+    setServiceLoading(true);
+
+    try {
+      const res = await fetch('/api/salons/my-salon/services', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: serviceForm.name,
+          description: serviceForm.description,
+          price: parseFloat(serviceForm.price),
+          duration: parseInt(serviceForm.duration),
+          category: serviceForm.category,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setServices([...services, data.service]);
+        setServiceForm({ name: '', description: '', price: '', duration: '30', category: '' });
+        setServiceSuccess('Service added successfully!');
+        setTimeout(() => setServiceSuccess(''), 3000);
+      } else {
+        const data = await res.json();
+        setServiceError(data.error || 'Failed to add service. Please try again.');
+      }
+    } catch (err) {
+      setServiceError('Network error. Please check your connection and try again.');
     }
+
+    setServiceLoading(false);
   };
 
   const deleteService = async (serviceId: string) => {
@@ -168,9 +193,8 @@ export default function SalonDashboard() {
     </div>
   );
 
-  const totalEarnings = bookings.reduce((sum, b) => sum + b.total_price - b.commission, 0);
+  const totalEarnings = bookings.reduce((sum, b) => sum + (Number(b.total_price) || 0) - (Number(b.commission) || 0), 0);
   const totalBookingsCount = bookings.length;
-  const pendingBookings = bookings.filter(b => b.status === 'pending').length;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -198,7 +222,7 @@ export default function SalonDashboard() {
               {[
                 { label: 'Total Bookings', value: totalBookingsCount, color: 'bg-blue-50 text-blue-700' },
                 { label: 'Your Earnings', value: `$${totalEarnings.toFixed(2)}`, color: 'bg-green-50 text-green-700' },
-                { label: 'Rating', value: salon?.rating ? `${salon.rating.toFixed(1)} ★` : 'N/A', color: 'bg-yellow-50 text-yellow-700' },
+                { label: 'Rating', value: salon?.rating ? `${Number(salon.rating).toFixed(1)} ★` : 'N/A', color: 'bg-yellow-50 text-yellow-700' },
                 { label: 'Reviews', value: salon?.review_count || 0, color: 'bg-purple-50 text-purple-700' },
               ].map(stat => (
                 <div key={stat.label} className={`card p-5 ${stat.color}`}>
@@ -235,6 +259,8 @@ export default function SalonDashboard() {
           <div>
             <div className="card p-6 mb-6">
               <h3 className="text-lg font-semibold mb-4">Add New Service</h3>
+              {serviceError && <div className="bg-red-50 text-red-600 p-3 rounded-xl mb-4 text-sm">{serviceError}</div>}
+              {serviceSuccess && <div className="bg-green-50 text-green-600 p-3 rounded-xl mb-4 text-sm">{serviceSuccess}</div>}
               <form onSubmit={addService} className="space-y-3">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <input className="input-field" placeholder="Service name *" value={serviceForm.name} onChange={e => setServiceForm({ ...serviceForm, name: e.target.value })} required />
@@ -242,10 +268,12 @@ export default function SalonDashboard() {
                 </div>
                 <input className="input-field" placeholder="Description" value={serviceForm.description} onChange={e => setServiceForm({ ...serviceForm, description: e.target.value })} />
                 <div className="grid grid-cols-2 gap-3">
-                  <input type="number" step="0.01" className="input-field" placeholder="Price ($) *" value={serviceForm.price} onChange={e => setServiceForm({ ...serviceForm, price: e.target.value })} required />
-                  <input type="number" className="input-field" placeholder="Duration (min) *" value={serviceForm.duration} onChange={e => setServiceForm({ ...serviceForm, duration: e.target.value })} required />
+                  <input type="number" step="0.01" min="0" className="input-field" placeholder="Price ($) *" value={serviceForm.price} onChange={e => setServiceForm({ ...serviceForm, price: e.target.value })} required />
+                  <input type="number" min="1" className="input-field" placeholder="Duration (min) *" value={serviceForm.duration} onChange={e => setServiceForm({ ...serviceForm, duration: e.target.value })} required />
                 </div>
-                <button type="submit" className="btn-primary">Add Service</button>
+                <button type="submit" className="btn-primary" disabled={serviceLoading}>
+                  {serviceLoading ? 'Adding...' : 'Add Service'}
+                </button>
               </form>
             </div>
 
@@ -342,7 +370,7 @@ export default function SalonDashboard() {
                       <div className="text-right">
                         <p className="text-sm text-gray-500">{b.booking_date} at {b.booking_time}</p>
                         <p className="font-bold text-primary-600">${b.total_price}</p>
-                        <p className="text-xs text-gray-400">Commission: ${b.commission.toFixed(2)}</p>
+                        <p className="text-xs text-gray-400">Commission: ${Number(b.commission).toFixed(2)}</p>
                         <span className={`text-xs px-2 py-1 rounded-full ${b.status === 'confirmed' ? 'bg-green-100 text-green-700' : b.status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
                           {b.status}
                         </span>
