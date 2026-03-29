@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { getDbReady } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import { v4 as uuid } from 'uuid';
 
@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
     if (!name || !email || !password) {
       return NextResponse.json({ error: 'Name, email, and password are required' }, { status: 400 });
     }
-    const sql = getDb();
+    const sql = await getDbReady();
     const existing = await sql`SELECT id FROM users WHERE email = ${email}`;
     if (existing.length > 0) {
       return NextResponse.json({ error: 'Email already registered' }, { status: 400 });

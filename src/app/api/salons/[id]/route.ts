@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { getDbReady } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const sql = getDb();
+    const sql = await getDbReady();
     const salons = await sql`SELECT * FROM salons WHERE id = ${params.id}`;
     if (salons.length === 0) return NextResponse.json({ error: 'Salon not found' }, { status: 404 });
 
@@ -25,7 +25,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     const session = await getServerSession(authOptions);
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const sql = getDb();
+    const sql = await getDbReady();
     const salons = await sql`SELECT * FROM salons WHERE id = ${params.id}`;
     if (salons.length === 0) return NextResponse.json({ error: 'Salon not found' }, { status: 404 });
     const salon = salons[0];

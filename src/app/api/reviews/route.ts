@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { getDbReady } from '@/lib/db';
 import { v4 as uuid } from 'uuid';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     }
 
     const session = await getServerSession(authOptions);
-    const sql = getDb();
+    const sql = await getDbReady();
     const reviewId = uuid();
     const customerUserId = (session?.user as any)?.id || null;
 
@@ -21,7 +21,6 @@ export async function POST(req: NextRequest) {
       VALUES (${reviewId}, ${salon_id}, ${customer_name}, ${customerUserId}, ${rating}, ${comment || null})
     `;
 
-    // Update salon rating
     const stats = await sql`SELECT AVG(rating) as avg_rating, COUNT(*) as count FROM reviews WHERE salon_id = ${salon_id}`;
     const avgRating = Math.round(parseFloat(stats[0].avg_rating) * 10) / 10;
     const count = parseInt(stats[0].count);

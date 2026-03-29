@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { getDbReady } from '@/lib/db';
 import { v4 as uuid } from 'uuid';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 
 export async function GET() {
   try {
-    const sql = getDb();
+    const sql = await getDbReady();
     const salons = await sql`
       SELECT s.*,
         (SELECT COUNT(*) FROM services WHERE salon_id = s.id AND is_active = 1) as service_count,
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     if (!name) {
       return NextResponse.json({ error: 'Salon name is required' }, { status: 400 });
     }
-    const sql = getDb();
+    const sql = await getDbReady();
     const salonId = uuid();
     const ownerId = (session.user as any).id;
     const hours = JSON.stringify(opening_hours || {});

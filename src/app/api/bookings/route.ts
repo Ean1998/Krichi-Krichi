@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { getDbReady } from '@/lib/db';
 import { v4 as uuid } from 'uuid';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     }
 
     const session = await getServerSession(authOptions);
-    const sql = getDb();
+    const sql = await getDbReady();
     const bookingId = uuid();
     const commission = total_price * COMMISSION_RATE;
     const customerUserId = (session?.user as any)?.id || null;
@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const sql = getDb();
+    const sql = await getDbReady();
     const userId = (session.user as any).id;
     const role = (session.user as any).role;
 
