@@ -7,8 +7,9 @@ import { authOptions } from '@/lib/auth-options';
 async function getMySalon() {
   const session = await getServerSession(authOptions);
   if (!session?.user) return null;
-  const db = getDb();
-  return db.prepare('SELECT * FROM salons WHERE owner_id = ? LIMIT 1').get((session.user as any).id) as any;
+  const sql = getDb();
+  const salons = await sql`SELECT * FROM salons WHERE owner_id = ${(session.user as any).id} LIMIT 1`;
+  return salons[0] || null;
 }
 
 export async function POST(req: NextRequest) {
@@ -19,13 +20,14 @@ export async function POST(req: NextRequest) {
     const { url, caption } = await req.json();
     if (!url) return NextResponse.json({ error: 'URL required' }, { status: 400 });
 
-    const db = getDb();
+    const sql = getDb();
     const photoId = uuid();
-    db.prepare('INSERT INTO salon_photos (id, salon_id, url, caption) VALUES (?, ?, ?, ?)').run(photoId, salon.id, url, caption || null);
+    await sql`INSERT INTO salon_photos (id, salon_id, url, caption) VALUES (${photoId}, ${salon.id}, ${url}, ${caption || null})`;
 
-    const photo = db.prepare('SELECT * FROM salon_photos WHERE id = ?').get(photoId);
-    return NextResponse.json({ photo });
+    const rows = await sql`SELECT * FROM salon_photos WHERE id = ${photoId}`;
+    return NextResponse.json({ photo: rows[0] });
   } catch (error) {
+    console.error('Add photo error:', error);
     return NextResponse.json({ error: 'Failed to add photo' }, { status: 500 });
   }
 }
@@ -38,10 +40,11 @@ export async function DELETE(req: NextRequest) {
     const photoId = req.nextUrl.searchParams.get('id');
     if (!photoId) return NextResponse.json({ error: 'Photo ID required' }, { status: 400 });
 
-    const db = getDb();
-    db.prepare('DELETE FROM salon_photos WHERE id = ? AND salon_id = ?').run(photoId, salon.id);
+    const sql = getDb();
+    await sql`DELETE FROM salon_photos WHERE id = ${photoId} AND salon_id = ${salon.id}`;
     return NextResponse.json({ message: 'Photo deleted' });
   } catch (error) {
+    console.error('Delete photo error:', error);
     return NextResponse.json({ error: 'Failed to delete photo' }, { status: 500 });
   }
 }

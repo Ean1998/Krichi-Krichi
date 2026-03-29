@@ -7,30 +7,28 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "db:init": "node src/lib/init-db.js"
+    "db:push": "node src/lib/init-db.mjs"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^0.9.5",
+    "bcryptjs": "^2.4.3",
     "next": "^14.2.0",
+    "next-auth": "^4.24.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
-    "better-sqlite3": "^11.0.0",
-    "next-auth": "^4.24.0",
-    "bcryptjs": "^2.4.3",
-    "uuid": "^9.0.0",
-    "sharp": "^0.33.0"
+    "uuid": "^9.0.0"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.0",
     "@types/node": "^20.0.0",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
-    "@types/better-sqlite3": "^7.6.0",
-    "@types/bcryptjs": "^2.4.0",
     "@types/uuid": "^9.0.0",
-    "typescript": "^5.4.0",
-    "tailwindcss": "^3.4.0",
-    "postcss": "^8.4.0",
     "autoprefixer": "^10.4.0",
     "eslint": "^8.0.0",
-    "eslint-config-next": "^14.2.0"
+    "eslint-config-next": "^14.2.0",
+    "postcss": "^8.4.0",
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.4.0"
   }
 }

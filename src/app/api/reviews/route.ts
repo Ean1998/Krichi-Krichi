@@ -12,23 +12,25 @@ export async function POST(req: NextRequest) {
     }
 
     const session = await getServerSession(authOptions);
-    const db = getDb();
+    const sql = getDb();
     const reviewId = uuid();
+    const customerUserId = (session?.user as any)?.id || null;
 
-    db.prepare(`
+    await sql`
       INSERT INTO reviews (id, salon_id, customer_name, customer_user_id, rating, comment)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(reviewId, salon_id, customer_name, (session?.user as any)?.id || null, rating, comment || null);
+      VALUES (${reviewId}, ${salon_id}, ${customer_name}, ${customerUserId}, ${rating}, ${comment || null})
+    `;
 
     // Update salon rating
-    const stats = db.prepare('SELECT AVG(rating) as avg_rating, COUNT(*) as count FROM reviews WHERE salon_id = ?').get(salon_id) as any;
-    db.prepare('UPDATE salons SET rating = ?, review_count = ? WHERE id = ?').run(
-      Math.round(stats.avg_rating * 10) / 10, stats.count, salon_id
-    );
+    const stats = await sql`SELECT AVG(rating) as avg_rating, COUNT(*) as count FROM reviews WHERE salon_id = ${salon_id}`;
+    const avgRating = Math.round(parseFloat(stats[0].avg_rating) * 10) / 10;
+    const count = parseInt(stats[0].count);
+    await sql`UPDATE salons SET rating = ${avgRating}, review_count = ${count} WHERE id = ${salon_id}`;
 
-    const review = db.prepare('SELECT * FROM reviews WHERE id = ?').get(reviewId);
-    return NextResponse.json({ review, message: 'Review submitted' });
+    const rows = await sql`SELECT * FROM reviews WHERE id = ${reviewId}`;
+    return NextResponse.json({ review: rows[0], message: 'Review submitted' });
   } catch (error) {
+    console.error('Review error:', error);
     return NextResponse.json({ error: 'Failed to submit review' }, { status: 500 });
   }
 }

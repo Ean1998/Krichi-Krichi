@@ -18,13 +18,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid file type' }, { status: 400 });
     }
 
-    const fileName = `${uuid()}.${ext}`;
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-    await mkdir(uploadDir, { recursive: true });
-    await writeFile(path.join(uploadDir, fileName), buffer);
+    // Convert to base64 data URL for Vercel (no persistent filesystem)
+    const mimeTypes: Record<string, string> = {
+      jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+      gif: 'image/gif', webp: 'image/webp',
+    };
+    const mime = mimeTypes[ext.toLowerCase()] || 'image/jpeg';
+    const base64 = buffer.toString('base64');
+    const dataUrl = `data:${mime};base64,${base64}`;
 
-    return NextResponse.json({ url: `/uploads/${fileName}` });
+    return NextResponse.json({ url: dataUrl });
   } catch (error) {
+    console.error('Upload error:', error);
     return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
   }
 }
